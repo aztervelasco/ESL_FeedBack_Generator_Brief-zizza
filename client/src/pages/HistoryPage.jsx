@@ -29,9 +29,11 @@ function HistoryPage() {
   const fetchRecords = async (filter = '') => {
     setLoading(true); setErrorMsg('');
     const localRecords = getLocalRecords(filter);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
     try {
       const url = filter ? `${API_BASE_URL}/api/records?student=${encodeURIComponent(filter)}` : `${API_BASE_URL}/api/records`;
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: controller.signal });
       if (!response.ok) throw new Error('Server error');
       const cloudData = await response.json();
       const cloudWithSource = cloudData.map(r => ({ ...r, source: 'cloud' }));
@@ -39,10 +41,15 @@ function HistoryPage() {
       const cloudFiltered = cloudWithSource.filter(r => !localIds.has(r.id));
       const merged = [...localRecords, ...cloudFiltered].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setRecords(merged);
-    } catch {
-      setErrorMsg('Could not connect to cloud database. Showing local records only.');
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        setErrorMsg('Server took too long to respond. Showing local records only.');
+      } else {
+        setErrorMsg('Could not connect to cloud database. Showing local records only.');
+      }
       setRecords(localRecords);
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   };
