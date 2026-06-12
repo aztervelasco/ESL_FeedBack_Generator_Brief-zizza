@@ -37,7 +37,7 @@ router.get('/', async (req, res) => {
 // POST /api/records - Save a record
 router.post('/', async (req, res) => {
   try {
-    const { studentName, date, teacherName, lessonUnit, checkedItems, feedbackText } = req.body;
+    const { studentName, date, teacherName, lessonUnit, checkedItems, feedbackText, gender } = req.body;
 
     if (!studentName || !date || !feedbackText) {
       return res.status(400).json({ error: 'studentName, date, and feedbackText are required fields.' });
@@ -56,7 +56,8 @@ router.post('/', async (req, res) => {
           teacher_name: teacherName || '',
           lesson_unit: lessonUnit || '',
           checked_items: checkedItems || {},
-          feedback_text: feedbackText
+          feedback_text: feedbackText,
+          gender: gender || null
         }
       ])
       .select();
@@ -76,7 +77,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { studentName, date, teacherName, lessonUnit, feedbackText } = req.body;
+    const { studentName, date, teacherName, lessonUnit, feedbackText, gender } = req.body;
 
     if (!studentName || !date || !feedbackText) {
       return res.status(400).json({ error: 'studentName, date, and feedbackText are required fields.' });
@@ -93,7 +94,8 @@ router.put('/:id', async (req, res) => {
         date: date,
         teacher_name: teacherName || '',
         lesson_unit: lessonUnit || '',
-        feedback_text: feedbackText
+        feedback_text: feedbackText,
+        gender: gender || null
       })
       .eq('id', id)
       .select();

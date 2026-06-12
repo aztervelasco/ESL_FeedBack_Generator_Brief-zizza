@@ -17,7 +17,7 @@ if (apiKey) {
 
 router.post('/', async (req, res) => {
   try {
-    const { studentName, date, teacherName, lessonUnit, checkedItems, customNotes } = req.body;
+    const { studentName, date, teacherName, lessonUnit, checkedItems, customNotes, gender } = req.body;
 
     if (!studentName) {
       return res.status(400).json({ error: 'Student name is required.' });
@@ -40,15 +40,24 @@ router.post('/', async (req, res) => {
       formattedObservations = 'No specific skills or behaviors checked (general class completion).';
     }
 
-    let prompt = `You are an ESL teacher writing a short progress note to a parent about ${studentName}'s class on ${date || 'today'} with teacher ${teacherName || 'the teacher'}. The lesson was on "${lessonUnit || 'General ESL Practice'}".
-Based on these observation notes:
+    // Determine pronoun instruction based on gender
+    const genderLabel = gender || 'unknown gender';
+    const pronounInstruction = gender === 'Male' 
+      ? 'Use the pronouns "he", "his", and "him" consistently to refer to the student.' 
+      : gender === 'Female' 
+        ? 'Use the pronouns "she" and "her" consistently to refer to the student.' 
+        : 'Use appropriate pronouns consistently to refer to the student.';
+
+    let prompt = `You are an ESL teacher writing a short progress note to a parent about ${studentName} (${genderLabel}) from ${date || 'today'}'s class on "${lessonUnit || 'General ESL Practice'}" with teacher ${teacherName || 'the teacher'}.
+    
+Based on these observations:
 ${formattedObservations}`;
 
     if (customNotes && customNotes.trim()) {
-      prompt += `\n\nAdditionally, please weave in the following specific class details/events: "${customNotes.trim()}"`;
+      prompt += `\n\nAdditional notes from the teacher: "${customNotes.trim()}"`;
     }
 
-    prompt += `\n\nWrite a warm, encouraging 3-4 sentence feedback paragraph. Mention student's strengths and what went well first, then gently note 1-2 areas for continued practice or review. Keep the language simple, positive, and parent-friendly. Use a direct, professional, yet caring tone. Refer to the student by name. Do not include placeholders, formatting tags, or preambles. Just return the feedback text.`;
+    prompt += `\n\nWrite a warm, encouraging 3-4 sentence paragraph. ${pronounInstruction} Mention strengths first, then gently note areas for continued practice. Keep it simple, positive, and parent-friendly. Refer to the student by name. Do not include placeholders, formatting tags, or preambles. Just return the feedback text.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',

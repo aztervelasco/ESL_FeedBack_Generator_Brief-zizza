@@ -3,20 +3,85 @@ import ChecklistSection from '../components/ChecklistSection';
 import FeedbackBox from '../components/FeedbackBox';
 import { Sparkles, Trash2, User, Calendar, BookOpen, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 
-const CHECKLIST_DATA = {
-  "Attendance & Readiness": ["Arrived on time","Arrived a few minutes late","Joined very late / Absent","Camera & Mic working well","Tech / Internet difficulties","Had required materials ready","Unprepared with materials"],
-  "Attitude & Behavior": ["Very enthusiastic & active","Participated when called on","Inconsistent / Rarely participated","Polite, respectful, cooperative","Cheerful and energetic","Serious and focused","Shy / Hesitant to respond","Easily frustrated / Upset","Maintained focus throughout","Distracted (looked away/toys)","Needed redirection / Left seat"],
-  "Listening Skills": ["Understood instructions immediately","Needed repetition (once/multiple)","Followed directions accurately","Followed multi-step directions","Missed details / Needs visual cues","Needed teacher modeling","Difficulty understanding spoken English"],
-  "Speaking Skills": ["Spoke confidently & willingly","Needed encouragement / Shy","Avoided speaking entirely","Answered independently","Used complete sentences","Expanded answers with details","Short phrases / One-word answers","Frequent \"I don't know\" responses","Spoke fluently with minor pauses","Struggled to express ideas","Fluency improved during lesson"],
-  "Pronunciation": ["Clear, easy-to-understand speech","Minor pronunciation errors","Difficulty with new vocabulary","Difficulty with specific / ending sounds","Difficulty with word / sentence stress","Monotone delivery","Self-corrected errors reliably","Improved quickly after correction","Needs continuous practice"],
-  "Vocabulary": ["Understood & used target words correctly","Remembered past vocabulary","Used vocabulary independently","Needed support / frequent reminders","Asked about unfamiliar words","Used context clues effectively","Misused words / Needs review"],
-  "Grammar": ["Used target grammar accurately","Demonstrated rule understanding","Minor mistakes / Frequent errors","Needed sentence models","Self-corrected / Improved via feedback","Omitted important structures"],
-  "Reading Skills": ["Read fluently and accurately","Minor / Frequent reading errors","Mispronounced words / Skipped words","Understood text / Answered CQ correctly","Identified key details / Predicted well","Inferred meaning from context","Needed guidance / Recalled poorly"],
-  "Writing Skills (If Applicable)": ["Wrote independently and followed rules","Correct capitalization & punctuation","Neat handwriting / Spelled accurately","Minor / Frequent spelling errors","Organized ideas clearly / Needs prompts"],
-  "Critical Thinking": ["Thought carefully / Explained reasoning","Used logic / Made connections","Asked thoughtful questions / Creative","Needed hints / Gave up easily","\"I don't know\" without trying"],
-  "Response to Correction": ["Accepted corrections positively","Applied corrections immediately","Self-corrected / Modeled successfully","Discouraged / Ignored corrections"],
-  "Parent/Support": ["Parent observed appropriately","Parent provided excessive help","Relied heavily on parent support","Worked independently with parent present"],
-  "Progress Comparison": ["Significant / Steady progress seen","Maintained previous performance","Improved confidence & participation","Improved sound, vocabulary, or grammar","Needs reinforcement / Regression seen"]
+const CHECKLIST_SECTIONS = {
+  "Engagement & Focus": {
+    type: "single",
+    items: [
+      "Enthusiastic & focused throughout",
+      "Participated well, but occasionally distracted",
+      "Participated only when prompted/called on",
+      "Quiet, hesitant, or needed constant encouragement"
+    ]
+  },
+  "Parent Involvement": {
+    type: "single",
+    items: [
+      "No parent present",
+      "Parent nearby but let the student work independently",
+      "Parent helped appropriately (clarified instructions / gave encouragement)",
+      "Parent was too involved (answered for the student)"
+    ]
+  },
+  "Answering & Sentences": {
+    type: "multiple",
+    items: [
+      "Answered independently & correctly",
+      "Answered confidently but needed choices/options",
+      "Needed examples/models before responding",
+      "Used complete, detailed sentences",
+      "Gave short phrases / One-word answers",
+      "Improved sentence structure after correction"
+    ]
+  },
+  "Speaking & Pronunciation": {
+    type: "multiple",
+    items: [
+      "Spoke confidently and clearly",
+      "Became more confident as class progressed",
+      "Hesitant to speak / Needed encouragement",
+      "Minor pronunciation errors / Missed ending sounds",
+      "Improved pronunciation after correction"
+    ]
+  },
+  "Reading Skills": {
+    type: "single",
+    items: [
+      "Read fluently and accurately",
+      "Can read well, but struggles to speak/explain",
+      "Minor reading errors / Needed occasional support",
+      "Struggled with reading / Needed heavy guidance"
+    ]
+  },
+  "Lesson Content (Vocab & Grammar)": {
+    type: "multiple",
+    items: [
+      "Grasped concepts & new vocabulary quickly",
+      "Good understanding, but minor grammar errors",
+      "Frequent grammar errors / Needs continued practice",
+      "Needed vocabulary support / Reminders to use target words",
+      "Needed frequent repetition & step-by-step guidance"
+    ]
+  },
+  "Mindset & Feedback": {
+    type: "multiple",
+    items: [
+      "Strong logical/creative thinking (solved problems alone)",
+      "Accepted corrections positively & self-corrected",
+      "Showed improvement compared to previous classes",
+      "Persistent despite challenges / Completed all activities"
+    ]
+  },
+  "Parent Homework Suggestions": {
+    type: "multiple-max-2",
+    maxSelection: 2,
+    items: [
+      "Encourage answering in complete sentences",
+      "Practice reading aloud for a few minutes daily",
+      "Review today's new vocabulary and target words",
+      "Encourage clear pronunciation practice",
+      "Continue providing praise to build confidence"
+    ]
+  }
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
@@ -27,6 +92,7 @@ function FormPage() {
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [teacherName, setTeacherName] = useState(() => localStorage.getItem('esl_default_teacher_name') || 'Teacher Zizza');
   const [lessonUnit, setLessonUnit] = useState(() => localStorage.getItem('esl_last_lesson_unit') || '');
+  const [gender, setGender] = useState('');
   const [customNotes, setCustomNotes] = useState('');
   const [checkedItems, setCheckedItems] = useState({});
   const [generatedFeedback, setGeneratedFeedback] = useState('');
@@ -73,13 +139,26 @@ function FormPage() {
   };
 
   const handleCheckboxChange = (sectionName, itemLabel) => {
+    const sectionConfig = CHECKLIST_SECTIONS[sectionName];
+    const isSingle = sectionConfig?.type === 'single';
+
     setCheckedItems(prev => {
       const section = prev[sectionName] || {};
-      const newVal = !section[itemLabel];
-      const updatedSection = { ...section, [itemLabel]: newVal };
-      if (!updatedSection[itemLabel]) delete updatedSection[itemLabel];
+      
+      let updatedSection;
+      if (isSingle) {
+        const isChecked = !!section[itemLabel];
+        updatedSection = isChecked ? {} : { [itemLabel]: true };
+      } else {
+        const newVal = !section[itemLabel];
+        updatedSection = { ...section, [itemLabel]: newVal };
+        if (!updatedSection[itemLabel]) delete updatedSection[itemLabel];
+      }
+
       const updated = { ...prev, [sectionName]: updatedSection };
-      if (Object.keys(updated[sectionName]).length === 0) delete updated[sectionName];
+      if (!updated[sectionName] || Object.keys(updated[sectionName]).length === 0) {
+        delete updated[sectionName];
+      }
       return updated;
     });
     setHasSaved(false);
@@ -88,11 +167,13 @@ function FormPage() {
 
   const handleQuickAutofill = () => {
     const preset = {
-      "Attendance & Readiness": { "Arrived on time": true, "Camera & Mic working well": true, "Had required materials ready": true },
-      "Attitude & Behavior": { "Very enthusiastic & active": true, "Polite, respectful, cooperative": true, "Maintained focus throughout": true },
-      "Listening Skills": { "Understood instructions immediately": true, "Followed directions accurately": true },
-      "Speaking Skills": { "Spoke confidently & willingly": true },
-      "Pronunciation": { "Clear, easy-to-understand speech": true }
+      "Engagement & Focus": { "Enthusiastic & focused throughout": true },
+      "Parent Involvement": { "No parent present": true },
+      "Answering & Sentences": { "Answered independently & correctly": true, "Used complete, detailed sentences": true },
+      "Speaking & Pronunciation": { "Spoke confidently and clearly": true },
+      "Reading Skills": { "Read fluently and accurately": true },
+      "Lesson Content (Vocab & Grammar)": { "Grasped concepts & new vocabulary quickly": true },
+      "Mindset & Feedback": { "Showed improvement compared to previous classes": true, "Accepted corrections positively & self-corrected": true }
     };
     setCheckedItems(preset);
     setHasSaved(false);
@@ -120,9 +201,10 @@ function FormPage() {
     e.preventDefault();
     setErrorMsg(''); setSuccessMsg(''); setGeneratedFeedback('');
     if (!studentName.trim()) { setErrorMsg('Please enter a student name before generating feedback.'); return; }
+    if (!gender) { setErrorMsg('Please select a student gender before generating feedback.'); return; }
     setIsGenerating(true);
     try {
-      const payload = { studentName, date, teacherName, lessonUnit, checkedItems: getCheckedItemsForAPI(), customNotes };
+      const payload = { studentName, date, teacherName, lessonUnit, checkedItems: getCheckedItemsForAPI(), customNotes, gender };
       const response = await fetch(`${API_BASE_URL}/api/feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -142,7 +224,7 @@ function FormPage() {
   const handleSaveRecord = async () => {
     if (!generatedFeedback) return;
     setIsSaving(true); setErrorMsg(''); setSuccessMsg('');
-    const payload = { studentName, date, teacherName, lessonUnit, checkedItems: getCheckedItemsForAPI(), feedbackText: generatedFeedback };
+    const payload = { studentName, date, teacherName, lessonUnit, checkedItems: getCheckedItemsForAPI(), feedbackText: generatedFeedback, gender };
     try {
       const response = await fetch(`${API_BASE_URL}/api/records`, {
         method: 'POST',
@@ -159,7 +241,7 @@ function FormPage() {
       console.warn('Cloud save failed, falling back to local storage:', error.message);
       try {
         const existing = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]');
-        const newRecord = { id: `local_${Date.now()}`, student_name: studentName, date, teacher_name: teacherName, lesson_unit: lessonUnit, checked_items: getCheckedItemsForAPI(), feedback_text: generatedFeedback, created_at: new Date().toISOString(), source: 'local' };
+        const newRecord = { id: `local_${Date.now()}`, student_name: studentName, date, teacher_name: teacherName, lesson_unit: lessonUnit, checked_items: getCheckedItemsForAPI(), feedback_text: generatedFeedback, created_at: new Date().toISOString(), source: 'local', gender };
         existing.unshift(newRecord);
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(existing));
         setHasSaved(true); setSaveMode('local');
@@ -180,6 +262,7 @@ function FormPage() {
       setStudentName(''); setDate(new Date().toISOString().split('T')[0]);
       setLessonUnit(localStorage.getItem('esl_last_lesson_unit') || '');
       setCustomNotes('');
+      setGender('');
       setCheckedItems({}); setGeneratedFeedback('');
       setHasSaved(false); setSaveMode(null);
       setErrorMsg(''); setSuccessMsg('');
@@ -204,34 +287,34 @@ function FormPage() {
   return (
     <div className="space-y-6 animate-fadeInUp">
       {/* Hero Banner */}
-      <div className="rounded-2xl p-6 sm:p-8 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f1f3d 0%, #141d35 50%, #0f1a2e 100%)', border: '1px solid #1e3a5f' }}>
-        <div className="absolute inset-0 opacity-30" style={{ background: 'radial-gradient(ellipse at top left, rgba(59,130,246,0.3) 0%, transparent 60%)' }} />
+      <div className="rounded-2xl p-6 sm:p-8 relative overflow-hidden transition-all duration-200" style={{ background: 'var(--gradient-banner)', border: '1px solid var(--banner-border)' }}>
+        <div className="absolute inset-0 opacity-10 dark:opacity-30" style={{ background: 'radial-gradient(ellipse at top left, rgba(59,130,246,0.3) 0%, transparent 60%)' }} />
         <div className="relative">
-          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2" style={{ color: '#f1f5f9' }}>
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2" style={{ color: 'var(--banner-text)' }}>
             Create Student Feedback
           </h2>
-          <p className="text-sm sm:text-base max-w-2xl leading-relaxed" style={{ color: '#94a3b8' }}>
-            Fill in the student details, select observation items below, then click <span className="font-semibold text-blue-400">Generate Written Feedback</span> to create a personalized AI feedback paragraph.
+          <p className="text-sm sm:text-base max-w-2xl leading-relaxed" style={{ color: 'var(--banner-subtext)' }}>
+            Fill in the student details, select observation items below, then click <span className="font-semibold text-blue-500 dark:text-blue-400">Generate Written Feedback</span> to create a personalized AI feedback paragraph.
           </p>
         </div>
       </div>
 
       <form onSubmit={handleGenerateFeedback} className="space-y-6">
         {/* Student Details Card */}
-        <div className="rounded-2xl p-6" style={{ background: '#0e1420', border: '1px solid #1e2d42' }}>
-          <div className="flex items-center justify-between mb-5 pb-4 border-b" style={{ borderColor: '#1e2d42' }}>
-            <h3 className="font-bold text-base" style={{ color: '#e2e8f0' }}>Class Details</h3>
-            <button type="button" onClick={handleClearForm} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" style={{ color: '#f43f5e', background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)' }}>
+        <div className="rounded-2xl p-6 transition-colors duration-200" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+          <div className="flex items-center justify-between mb-5 pb-4 border-b transition-colors duration-200" style={{ borderColor: 'var(--border-color)' }}>
+            <h3 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>Class Details</h3>
+            <button type="button" onClick={handleClearForm} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer" style={{ color: '#f43f5e', background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)' }}>
               <Trash2 className="h-3.5 w-3.5" /><span>Clear Form</span>
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Student Name */}
             <div className="relative">
-              <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#4b6079' }}>Student Name *</label>
+              <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Student Name *</label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#4b6079' }} />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
                 <input
                   type="text"
                   required
@@ -251,13 +334,14 @@ function FormPage() {
               
               {/* Autocomplete Dropdown */}
               {showSuggestions && studentName && pastStudents.filter(name => name.toLowerCase().includes(studentName.toLowerCase()) && name.toLowerCase() !== studentName.toLowerCase()).length > 0 && (
-                <div className="absolute left-0 right-0 mt-1 rounded-xl border z-50 overflow-hidden shadow-2xl max-h-48 overflow-y-auto" style={{ background: '#0e1420', borderColor: '#1e2d42' }}>
+                <div className="absolute left-0 right-0 mt-1 rounded-xl border z-50 overflow-hidden shadow-2xl max-h-48 overflow-y-auto" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
                   {pastStudents
                     .filter(name => name.toLowerCase().includes(studentName.toLowerCase()) && name.toLowerCase() !== studentName.toLowerCase())
                     .map(name => (
                       <div
                         key={name}
-                        className="px-4 py-2 text-sm text-slate-300 hover:bg-blue-600/30 cursor-pointer transition-colors"
+                        className="px-4 py-2 text-sm transition-colors cursor-pointer hover:bg-blue-600/30"
+                        style={{ color: 'var(--text-primary)' }}
                         onMouseDown={() => {
                           setStudentName(name);
                           setShowSuggestions(false);
@@ -270,11 +354,34 @@ function FormPage() {
               )}
             </div>
 
+            {/* Gender Selection */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Gender *</label>
+              <div className="relative">
+                <select
+                  required
+                  value={gender}
+                  onChange={e => setGender(e.target.value)}
+                  style={{
+                    ...inputStyle,
+                    paddingLeft: '12px',
+                    color: gender ? 'var(--text-primary)' : 'var(--text-secondary)'
+                  }}
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
+                >
+                  <option value="" disabled>-- Gender --</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+            </div>
+
             {/* Class Date */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#4b6079' }}>Class Date</label>
+              <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Class Date</label>
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#4b6079' }} />
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
                 <input
                   type="date"
                   value={date}
@@ -288,9 +395,9 @@ function FormPage() {
 
             {/* Teacher Name */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#4b6079' }}>Teacher Name</label>
+              <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Teacher Name</label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#4b6079' }} />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
                 <input
                   type="text"
                   value={teacherName}
@@ -305,9 +412,9 @@ function FormPage() {
 
             {/* Lesson / Unit */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#4b6079' }}>Lesson / Unit</label>
+              <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Lesson / Unit</label>
               <div className="relative">
-                <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#4b6079' }} />
+                <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
                 <input
                   type="text"
                   value={lessonUnit}
@@ -322,8 +429,8 @@ function FormPage() {
           </div>
 
           {/* Custom Notes Section */}
-          <div className="mt-5 pt-4 border-t" style={{ borderColor: '#1e2d42' }}>
-            <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#4b6079' }}>
+          <div className="mt-5 pt-4 border-t transition-colors duration-200" style={{ borderColor: 'var(--border-color)' }}>
+            <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>
               Custom Notes / Unique Details (Optional)
             </label>
             <textarea
@@ -341,12 +448,12 @@ function FormPage() {
         {/* Checklists */}
         <div>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <h3 className="font-bold text-lg" style={{ color: '#e2e8f0' }}>Observation Checklists</h3>
+            <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Observation Checklists</h3>
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={handleQuickAutofill}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:bg-blue-600/20"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:bg-blue-600/20 cursor-pointer"
                 style={{ color: '#60a5fa', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)' }}
               >
                 ✨ Quick Autofill (Great Class)
@@ -358,8 +465,16 @@ function FormPage() {
               )}
             </div>
           </div>
-          {Object.entries(CHECKLIST_DATA).map(([title, items]) => (
-            <ChecklistSection key={title} title={title} items={items} selectedItems={checkedItems[title] || {}} onChange={(item) => handleCheckboxChange(title, item)} />
+          {Object.entries(CHECKLIST_SECTIONS).map(([title, config]) => (
+            <ChecklistSection
+              key={title}
+              title={title}
+              items={config.items}
+              type={config.type}
+              maxSelection={config.maxSelection}
+              selectedItems={checkedItems[title] || {}}
+              onChange={(item) => handleCheckboxChange(title, item)}
+            />
           ))}
         </div>
 
@@ -379,9 +494,9 @@ function FormPage() {
         <button
           type="submit"
           disabled={isGenerating}
-          className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl text-base font-bold text-white transition-all duration-200"
+          className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl text-base font-bold text-white transition-all duration-200 cursor-pointer"
           style={{
-            background: isGenerating ? '#1e2d42' : 'linear-gradient(135deg, #3b82f6, #6366f1, #8b5cf6)',
+            background: isGenerating ? 'var(--border-color)' : 'linear-gradient(135deg, #3b82f6, #6366f1, #8b5cf6)',
             boxShadow: isGenerating ? 'none' : '0 0 30px rgba(99,102,241,0.35)',
             transform: isGenerating ? 'none' : 'translateY(0)',
             cursor: isGenerating ? 'not-allowed' : 'pointer'
