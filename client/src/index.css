@@ -102,5 +102,6 @@
 .animate-fadeIn { animation: fadeIn 0.3s ease forwards; }
 .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
 
-/* Input dark overrides */
-input, textarea, select { color-scheme: dark; }
+/* Input color-scheme: match the active theme */
+input, textarea, select { color-scheme: light; }
+.dark input, .dark textarea, .dark select { color-scheme: dark; }

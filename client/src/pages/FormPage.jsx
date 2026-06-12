@@ -270,9 +270,9 @@ function FormPage() {
   };
 
   const inputStyle = {
-    background: '#080c14',
-    border: '1px solid #1e2d42',
-    color: '#e2e8f0',
+    background: 'var(--input-bg)',
+    border: '1px solid var(--border-color)',
+    color: 'var(--input-text)',
     borderRadius: '10px',
     padding: '10px 12px 10px 36px',
     fontSize: '14px',
@@ -282,7 +282,7 @@ function FormPage() {
   };
 
   const handleInputFocus = (e) => { e.target.style.borderColor = 'rgba(59,130,246,0.5)'; };
-  const handleInputBlur = (e) => { e.target.style.borderColor = '#1e2d42'; };
+  const handleInputBlur = (e) => { e.target.style.borderColor = 'var(--border-color)'; };
 
   return (
     <div className="space-y-6 animate-fadeInUp">
@@ -365,7 +365,8 @@ function FormPage() {
                   style={{
                     ...inputStyle,
                     paddingLeft: '12px',
-                    color: gender ? 'var(--text-primary)' : 'var(--text-secondary)'
+                    color: 'var(--input-text)',
+                    cursor: 'pointer'
                   }}
                   onFocus={handleInputFocus}
                   onBlur={handleInputBlur}
